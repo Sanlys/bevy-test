@@ -1,5 +1,3 @@
-use core::fmt;
-
 use bevy::{
     prelude::*,
     render::{

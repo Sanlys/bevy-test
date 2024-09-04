@@ -99,13 +99,14 @@ fn update_persontext_self(mut nametext_query: Query<(&mut Text, &mut Name), With
 */
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(RenderPlugin {
+        /*.add_plugins(DefaultPlugins.set(RenderPlugin {
             render_creation: RenderCreation::Automatic(WgpuSettings {
                 backends: Some(Backends::VULKAN),
                 ..Default::default()
             }),
             ..Default::default()
-        }))
+        }))*/
+        .add_plugins(DefaultPlugins)
         .add_systems(Startup, add_people)
         .add_systems(Update, (sync_name_to_text, render_person_name))
         .run();

@@ -247,13 +247,6 @@ fn main() {
                     }),
                     ..Default::default()
                 })
-                .set(RenderPlugin {
-                    render_creation: RenderCreation::Automatic(WgpuSettings {
-                        backends: Some(bevy::render::settings::Backends::METAL),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                }),
         )
         .add_plugins(bevy::diagnostic::FrameTimeDiagnosticsPlugin)
         .add_plugins(bevy::diagnostic::EntityCountDiagnosticsPlugin)

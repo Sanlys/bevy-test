@@ -1,37 +1,20 @@
-use bevy::{
-    prelude::*,
-    render::{
-        settings::{Backends, RenderCreation, WgpuSettings},
-        RenderPlugin,
-    },
-};
+use bevy::prelude::*;
 
 #[derive(Component)]
 struct Person;
 
 #[derive(Component)]
+#[derive(PartialEq, Eq)]
 struct Name(String);
 
-/*
 #[derive(Component)]
-struct Counter(i32);
-
-
-fn init_counter(mut commands: Commands) {
-    commands.spawn(Counter(0));
-}
-
-
-fn increment_counter(mut query: Query<&mut Counter>) {
-    for mut counter in &mut query {
-        counter.0 += 1
-    }
-}
-*/
+#[derive(PartialEq, Eq)]
+struct Position(i32, i32);
 
 fn add_people(mut commands: Commands) {
-    commands.spawn((Person, Name("A".to_string())));
-    commands.spawn((Person, Name("B".to_string())));
+    commands.spawn((Person, Name("A".to_string()), Position(0, 0)));
+    commands.spawn((Person, Name("B".to_string()), Position(1, 1)));
+    commands.spawn((Person, Name("C".to_string()), Position(2, 2)));
 
     commands.spawn(Camera2dBundle::default());
     commands.spawn(TextBundle::from_section(
@@ -42,16 +25,29 @@ fn add_people(mut commands: Commands) {
     ));
 }
 
+fn greet_neighbours(person_query: Query<(&Name, &Position), With<Person>>) {
+    for person in &person_query {
+        for person2 in &person_query {
+            if person.0 != person2.0 && person.1 != person2.1 {
+                let x_distance = person.1.0 - person2.1.0;
+                let y_distance = person.1.1 - person2.1.1;
+                let x_distance_abs = x_distance.abs();
+                let y_distance_abs = y_distance.abs();
+                if x_distance_abs <= 1 || y_distance_abs <= 1 {
+                    println!("{} greets {}. X-distance: {}, Y-distance: {}", person.0.0, person2.0.0, x_distance_abs, y_distance_abs);
+                }
+            }
+        }
+    }
+}
+
 fn sync_name_to_text(mut query: Query<(&mut Text, &Name), With<Name>>) {
     for (mut text, name) in &mut query {
         text.sections[0].value = name.0.to_string();
     }
 }
 
-fn render_person_name(
-    name_query: Query<&Name>,
-    mut text_query: Query<&mut Text>,
-) {
+fn render_person_name(name_query: Query<&Name>, mut text_query: Query<&mut Text>) {
     let mut to_display = "".to_string();
     for name in &name_query {
         let str = format!("Name: {}\n", name.0);
@@ -61,42 +57,7 @@ fn render_person_name(
         text.sections[0].value = to_display.clone();
     }
 }
-/*
-fn greet_people(query: Query<&Name, With<Person>>) {
-    for name in &query {
-        println!("aaa {} bbb", name.0);
-    }
-}
 
-fn update_people(mut query: Query<&mut Name, With<Person>>) {
-    for mut name in &mut query {
-        if name.0 == "A" {
-            name.0 = "AA".to_string();
-            break; // We don't need to change any other names.
-        }
-    }
-}
-*/
-//fn update_text(counter_query: Query<&Counter>, mut text_query: Query<&mut Text>) {
-//let counter = counter_query.single();
-//let mut text = text_query.single_mut();
-
-//text.sections[0].value = counter.0.to_string()
-//}
-/*
-fn update_person_text(name_query: Query<&Name>, mut text_query: Query<&mut Name, With<Text>>) {
-    let name = name_query.single();
-    let mut text = text_query.single_mut();
-
-    text.0 = name.0.to_string();
-}
-
-fn update_persontext_self(mut nametext_query: Query<(&mut Text, &mut Name), With<Name>>) {
-    let (mut text, name) = nametext_query.single_mut();
-
-    text.sections[0].value = name.0.to_string();
-}
-*/
 fn main() {
     App::new()
         /*.add_plugins(DefaultPlugins.set(RenderPlugin {
@@ -109,8 +70,6 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, add_people)
         .add_systems(Update, (sync_name_to_text, render_person_name))
+        .add_systems(Update, greet_neighbours)
         .run();
 }
-// .add_systems(Startup, init_counter)
-// (increment_counter, update_text).chain()
-// (update_person_text, update_persontext_self).chain()

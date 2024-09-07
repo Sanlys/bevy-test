@@ -1,10 +1,5 @@
-use bevy::{
-    prelude::*,
-    render::{
-        settings::{RenderCreation, WgpuSettings},
-        RenderPlugin,
-    },
-};
+use bevy::prelude::*;
+use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use core::fmt;
 use iyes_perf_ui::prelude::*;
 use rand::Rng;
@@ -18,14 +13,11 @@ struct Name(String);
 #[derive(Component, PartialEq, Eq, Clone)]
 struct Position(i32, i32);
 
-#[derive(Resource)]
-struct GreetTimer(Timer);
+//#[derive(Resource)]
+//struct GreetTimer(Timer);
 
 #[derive(Component)]
 struct Player;
-
-#[derive(Component)]
-struct NeighbourText;
 
 struct NeighbourData {
     entity: Entity,
@@ -112,15 +104,6 @@ fn add_people(mut commands: Commands) {
     ));
 
     commands.spawn(Camera2dBundle::default());
-    commands.spawn((
-        TextBundle::from_section(
-            "Person placeholder",
-            TextStyle {
-                ..Default::default()
-            },
-        ),
-        NeighbourText,
-    ));
 }
 
 fn player_movement(
@@ -195,67 +178,49 @@ fn greet_neighbours(
     }
 }
 
-fn sync_name_to_text(mut query: Query<(&mut Text, &Name), (With<Name>)>) {
-    for (mut text, name) in &mut query {
-        text.sections[0].value = name.0.to_string();
-    }
-}
-
-fn render_person_name(
-    name_query: Query<(&Name, &Neighbours)>,
-    mut text_query: Query<&mut Text, With<NeighbourText>>,
-) {
-    let mut to_display = "".to_string();
-    for (name, neighbours) in &name_query {
-        let str = format!(
-            "Name: {}. Neighbour count: {}. Neighbour data: {}\n",
-            name.0,
-            neighbours.neighbours.len(),
-            neighbours
-                .neighbours
-                .iter()
-                .map(|n| n.to_string())
-                .collect::<Vec<String>>()
-                .join(" - ")
-        );
-        to_display.push_str(&str);
-    }
-    for mut text in &mut text_query {
-        text.sections[0].value = to_display.clone();
-    }
-}
-
 fn setup(mut commands: Commands) {
     commands.spawn(PerfUiCompleteBundle::default());
 }
 
+fn egui_ui_system(
+    mut contexts: EguiContexts,
+    person_query: Query<(&Name, &Neighbours), With<Person>>,
+) {
+    egui::Window::new("Test").show(contexts.ctx_mut(), |ui| {
+        for (name, neighbours) in &person_query {
+            ui.label(name.0.clone());
+            ui.horizontal(|ui| {
+                ui.label("Neighbours:");
+                if neighbours.neighbours.len() == 0 {
+                    ui.label("No neighbours");
+                }
+                for neighbour in &neighbours.neighbours {
+                    ui.label(neighbour.name.clone());
+                }
+            });
+            ui.separator();
+        }
+    });
+}
+
 fn main() {
     App::new()
-        /*.add_plugins(DefaultPlugins.set(RenderPlugin {
-            render_creation: RenderCreation::Automatic(WgpuSettings {
-                backends: Some(Backends::VULKAN),
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                present_mode: bevy::window::PresentMode::AutoVsync,
                 ..Default::default()
             }),
             ..Default::default()
-        }))*/
-        .add_plugins(
-            DefaultPlugins
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        present_mode: bevy::window::PresentMode::AutoNoVsync,
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                })
-        )
+        }))
+        .add_plugins(EguiPlugin)
         .add_plugins(bevy::diagnostic::FrameTimeDiagnosticsPlugin)
         .add_plugins(bevy::diagnostic::EntityCountDiagnosticsPlugin)
         .add_plugins(bevy::diagnostic::SystemInformationDiagnosticsPlugin)
         .add_plugins(PerfUiPlugin)
+        .add_systems(Update, egui_ui_system)
         .add_systems(Startup, setup)
-        .insert_resource(GreetTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
+        //.insert_resource(GreetTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         .add_systems(Startup, add_people)
-        .add_systems(Update, (sync_name_to_text, render_person_name))
         .add_systems(Update, greet_neighbours)
         .add_systems(Update, (sync_position, random_movement, player_movement))
         .run();

@@ -31,10 +31,20 @@ impl Work {
             total_ticks,
         }
     }
-    fn new_with_ticks(total_ticks: i32, ticks_remaining: i32) -> Self {
-        Work {
-            ticks_remaining,
-            total_ticks,
+}
+enum Task {
+    IDLE,
+    GATHERING
+}
+
+#[derive(Component)]
+struct Pawn {
+    current_task: Task,
+}
+impl Pawn {
+    fn new() -> Self {
+        Pawn {
+            current_task: Task::IDLE,
         }
     }
 }
@@ -48,15 +58,18 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
     commands.spawn(PerfUiCompleteBundle::default());
 
-    commands.spawn(SpriteBundle {
-        sprite: Sprite {
-            color: Color::srgb(1.0, 0.0, 0.0),
-            custom_size: Some(Vec2::new(50.0, 50.0)),
+    commands.spawn((
+        SpriteBundle {
+            sprite: Sprite {
+                color: Color::srgb(1.0, 0.0, 0.0),
+                custom_size: Some(Vec2::new(50.0, 50.0)),
+                ..Default::default()
+            },
+            transform: Transform::from_xyz(0.0, 0.0, 0.0),
             ..Default::default()
         },
-        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-        ..Default::default()
-    });
+        Pawn::new(),
+    ));
 
     commands
         .spawn((
@@ -135,14 +148,29 @@ fn generator_text(query: Query<(&Value, &Children), With<A>>, mut child_query: Q
     }
 }
 
+fn pawn_gather(mut query: Query<&mut Pawn>, generators: Query<&A>) {
+    for mut pawn in &mut query {
+        for _generator in &generators {
+            pawn.current_task = Task::GATHERING;
+        }
+    }
+}
+
 fn tick(mut tickrate: ResMut<Tickrate>, time: Res<Time>) {
     tickrate.timer.tick(time.delta());
 }
 
-fn egui_ui_system(mut contexts: EguiContexts, query: Query<&Work>) {
+fn egui_ui_system(mut contexts: EguiContexts, query: Query<&Work>, pawn_query: Query<&Pawn>) {
     egui::Window::new("Debug").show(contexts.ctx_mut(), |ui| {
         for work in &query {
             ui.label(work.ticks_remaining.to_string());
+        }
+        ui.separator();
+        for pawn in &pawn_query {
+            ui.label(match pawn.current_task {
+                Task::IDLE => "Idling",
+                Task::GATHERING => "Gathering from generator"
+            });
         }
     });
 }
@@ -160,7 +188,7 @@ fn main() {
                 })
                 .set(RenderPlugin {
                     render_creation: RenderCreation::Automatic(WgpuSettings {
-                        backends: Some(Backends::VULKAN),
+                        backends: Some(Backends::METAL),
                         ..Default::default()
                     }),
                     ..Default::default()
@@ -177,6 +205,7 @@ fn main() {
             timer: Timer::from_seconds(0.25, TimerMode::Repeating),
         })
         .add_systems(Update, (generator, generator_text))
+        .add_systems(Update, pawn_gather)
         .add_systems(Update, tick)
         .run();
 }
